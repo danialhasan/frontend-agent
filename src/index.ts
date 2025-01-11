@@ -2,6 +2,8 @@ import express from 'express';
 import { TestOrchestrator } from './orchestrator';
 import { Test, SystemMessage, Screenshot } from './types';
 import { v4 as uuidv4 } from 'uuid';
+import { promises as fs } from 'fs';
+import path from 'path';
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -9,11 +11,26 @@ const port = process.env.PORT || 3001;
 // Initialize the test orchestrator
 const orchestrator = new TestOrchestrator();
 
+// Clear screenshots folder on startup
+async function clearScreenshots() {
+    const screenshotsDir = './screenshots';
+    try {
+        await fs.rm(screenshotsDir, { recursive: true, force: true });
+        await fs.mkdir(screenshotsDir, { recursive: true });
+        console.log('Screenshots folder cleared');
+    } catch (error) {
+        console.error('Error clearing screenshots folder:', error);
+    }
+}
+
 // Middleware
 app.use(express.json({ limit: '50mb' }));
 
 // Initialize orchestrator and handle cleanup
-orchestrator.initialize().catch(console.error);
+Promise.all([
+    orchestrator.initialize(),
+    clearScreenshots()
+]).catch(console.error);
 
 process.on('SIGTERM', async () => {
     console.log('Received SIGTERM. Cleaning up...');
